@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Game Development</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="build/three.js"></script>
+    <script src="lights.js"></script>       <!-- import lights js file -->
+    <script src="lib/dat.gui.js"></script>      <!-- import dat.gui js file (had to create this lib folder seperately)-->
+    <script src="lib/stats.js"></script>        <!-- import stats js file (had to create this lib folder seperately)-->
+    <script src="examples/js/controls/OrbitControls.js"></script>
+    <script src="examples/js/loaders/GLTFLoader.js"></script>
+</head>
+<body>
+    <div id="Stats-output"></div>
+    <script>
+        var stats = initStats();        //Needs to show fps
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, -3, 30);
+        // camera.position.z = 10;
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap; // default THREE.PCFShadowMap
+        document.body.appendChild(renderer.domElement);
+
+        // Prologue controls
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+        // Loading satellite model
+        var loader = new THREE.GLTFLoader();
+        loader.load('assets/models/scene.gltf', function (gltf) {
+            scene.add(gltf.scene);
+            gltf.scene.scale.set(0.09, 0.09, 0.09);
+            gltf.scene.position.set(2, -2, 5);
+            gltf.scene.rotateX(0.5);
+            gltf.scene.rotateY(-0.5);
+            gltf.scene.castShadow = true;
+            gltf.scene.receiveShadow = true;
+        }, undefined, function (error) {
+            console.log(error);
+        });
+
+        // Skybox
+        let materialArray = [];
+
+        let textureFp = new THREE.TextureLoader().load("assets/skybox/sky.png");
+        let textureBk = new THREE.TextureLoader().load("assets/skybox/sky.png");
+        let textureUp = new THREE.TextureLoader().load("assets/skybox/sky.png");
+        let textureDn = new THREE.TextureLoader().load("assets/skybox/sky.png");
+        let textureRt = new THREE.TextureLoader().load("assets/skybox/sky.png");
+        let textureLt = new THREE.TextureLoader().load("assets/skybox/sky.png");
+
+        materialArray.push(new THREE.MeshBasicMaterial({map: textureFp}));
+        materialArray.push(new THREE.MeshBasicMaterial({map: textureBk}));
+        materialArray.push(new THREE.MeshBasicMaterial({map: textureUp}));
+        materialArray.push(new THREE.MeshBasicMaterial({map: textureDn}));
+        materialArray.push(new THREE.MeshBasicMaterial({map: textureRt}));
+        materialArray.push(new THREE.MeshBasicMaterial({map: textureLt}));
+
+        for (let i = 0; i < 6; i++)
+            materialArray[i].side = THREE.BackSide;        
+        let skyboxGeo = new THREE.BoxGeometry(500, 500, 500);
+        let skybox = new THREE.Mesh(skyboxGeo, materialArray);
+        scene.add(skybox);
+
+
+        // Show axises
+        var axes = new THREE.AxesHelper(20);
+        //scene.add(axes);
+        
+
+        // Saturn sphere
+        const geometryS = new THREE.SphereGeometry(4);
+        const materialS = new THREE.MeshPhongMaterial({
+            color: 0xf5ffdd,
+            wireframe: false,
+            map: new THREE.TextureLoader().load("assets/TextureSaturn/saturn.jpg"),
+            bumpMap: new THREE.TextureLoader().load("assets/TextureSaturn/saturn.jpg"),
+            shininess: 25
+        });
+        const sphere = new THREE.Mesh(geometryS, materialS);
+        sphere.position.set(0, 0, 0);
+        sphere.castShadow = true;
+        sphere.receiveShadow = true;
+        scene.add(sphere);
+
+
+        // Saturn ring
+        const geometryR = new THREE.RingGeometry(5, 12, 1000);
+        const materialR = new THREE.MeshStandardMaterial({
+            color: 0xf5ffdd,
+            side: THREE.DoubleSide,
+            wireframe: false,
+            shininess: 100,
+            map: new THREE.TextureLoader().load("assets/TextureSaturn/ring.png"),
+            normalMap: new THREE.TextureLoader().load("assets/TextureSaturn/ring1.png")
+        });
+        const ring = new THREE.Mesh(geometryR, materialR);
+        ring.position.set(0, 0, 0);
+        ring.rotateX(1.55);
+        ring.xRadius = 50;
+        ring.castShadow = true;
+        ring.receiveShadow = true;
+        scene.add(ring);
+
+
+        // Moon
+        var texture = new THREE.TextureLoader().load("assets/moon/moon.jpg");
+        // var bmptexture = new THREE.TextureLoader().load(bmpMapFile);
+        var material = new THREE.MeshPhongMaterial( { map: texture} );
+
+        // For titan moon
+        const materialTitan = new THREE.MeshPhongMaterial( { map: texture, color:0xffa500} );
+        Moon([6, 3, 4], 0.4, 0.02, 0.002, materialTitan, true);
+
+        // For other random 3 moons
+        for (var i = 0; i < 3; i++){
+            var x = THREE.MathUtils.randFloatSpread(20, 28);
+            var y = THREE.MathUtils.randFloatSpread(18, 26);
+            var z = THREE.MathUtils.randFloatSpread(2, 6);
+            var pos = [x, y, z];
+            var size = THREE.MathUtils.randFloat(0.15, 0.35);
+            var rotation = THREE.MathUtils.randFloat(0.001, 0.01);
+            var orbit = THREE.MathUtils.randFloat(0.002, 0.008);
+            Moon(pos, size, rotation, orbit, material)
+        }
+
+        function Moon(pos, size, rotationSpeed, orbitSpeed, material, shadowCast=true){
+
+            var geometry = new THREE.SphereGeometry(size, 32, 16);
+            var moon = new THREE.Mesh( geometry, material );
+            var moonObj = new THREE.Object3D();
+            moonObj.add(moon);
+            scene.add(moonObj);
+
+            moon.position.x = pos[0];
+            moon.position.y = pos[1];
+            moon.position.z = pos[2];
+
+            moon.receiveShadow = true;
+            moon.castShadow = shadowCast;
+                
+            function animate() {
+                requestAnimationFrame( animate );
+                moon.rotateY(rotationSpeed);
+                moonObj.rotateY(orbitSpeed);
+                renderer.render( scene, camera );
+            };
+
+            animate();
+        }
+
+
+        // Astroids
+        var vertices = [];
+        var noOfAstr = 1000000;
+
+        for (var i = 0; i < noOfAstr; i++){
+            var x = THREE.MathUtils.randFloatSpread(10000);
+            var y = THREE.MathUtils.randFloatSpread(10000);
+            var z = THREE.MathUtils.randFloatSpread(10000);
+            var speed = THREE.MathUtils.randFloat(0.1, 0.5);
+
+            //vertices.push(x, y, z)
+            //choose only far asteroids
+            if (!(x<100 && x>-100) || !(y<100 && y>-100) || !(z<100 && z>-100)) vertices.push(x, y, z);
+        }
+        
+        var geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        var texture = new THREE.TextureLoader().load("assets/astroid/asteroid.png");
+        var material = new THREE.PointsMaterial({size: 2, map: texture, transparent: false});
+        var asteroids = new THREE.Points(geometry, material);
+        asteroids.rotateX(10);
+        scene.add(asteroids);
+
+        function animate() {
+            requestAnimationFrame(animate);
+            // asteroids.position.z -= speed;
+            renderer.render( scene, camera );
+        };
+
+        animate();
+
+
+        // Lights functions calling
+        ambient();
+        // dir();
+        spot();
+        // hemi();
+
+
+        var render = function() {
+            renderer.render(scene, camera);
+        }
+
+        
+        // Needs to show fps
+        function initStats() {
+            var stats = new Stats();
+            stats.setMode(0);
+            stats.domElement.style.position = 'absolute';
+            document.getElementById("Stats-output").appendChild(stats.domElement);
+            return stats;
+        }
+
+        // Needs to show a controller panel
+        var controls = new function() {
+            this.rotationSpeed = 0.002;
+            this.asteroidsSpeed = 0.65;
+            this.noOfAsteroids = 100;
+        }
+
+        // Needs to show a controller panel
+        var gui = new dat.GUI();
+        gui.add(controls, 'rotationSpeed', 0, 0.4);
+        gui.add(controls, 'asteroidsSpeed', 0, 2);
+        gui.add(controls, 'noOfAsteroids', 0, 10000000);
+
+        var update = function() {
+            stats.update();
+            sphere.rotateY(controls.rotationSpeed);
+            ring.rotateZ(-controls.rotationSpeed);
+            asteroids.position.z -= controls.asteroidsSpeed;
+            noOfAstr += controls.noOfAsteroids;
+        }
+
+        var gameLoop = function() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+
+        window.addEventListener('resize', function() {
+            var width = window.innerWidth;
+            var height = window.innerHeight;
+            renderer.setSize(width, height);
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+        } );
+    </script>
+</body>
+</html>

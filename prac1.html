@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Game Development</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="build/three.js"></script>
+    <script src="examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <script>
+        function init() {
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+            camera.position.set(-8, 12, 8);
+            // camera.position.z = 10;
+            const renderer = new THREE.WebGLRenderer();
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            document.body.appendChild( renderer.domElement );
+
+            // Prologue controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+            // Show axises
+            var axes = new THREE.AxesHelper(20);
+            scene.add(axes);
+
+            const geometryP = new THREE.PlaneGeometry( 12, 4 );
+            const materialP = new THREE.MeshBasicMaterial( {color: 0x808080, side: THREE.DoubleSide, wireframe: false} );
+            const plane = new THREE.Mesh( geometryP, materialP );
+            scene.add( plane );
+            plane.rotation.x = Math.PI / 2;
+
+            const geometryB = new THREE.BoxGeometry( 1, 1, 1 );
+            const materialB = new THREE.MeshBasicMaterial( {color: 0xff0f00, wireframe: false} );
+            const cube = new THREE.Mesh( geometryB, materialB );
+            scene.add( cube );
+            cube.position.set(-3, 0.5, 0)       //can be used to change the position like 'translate'
+            // cube.position.x = -3;      //can be used to change the position like 'translate'
+            // cube.translateX(-3);
+            // cube.translateY(0.5);
+            
+
+            const geometryS = new THREE.SphereGeometry( 0.8, 32, 16 );
+            const materialS = new THREE.MeshBasicMaterial( { color: 0x0000ff, wireframe: false} );
+            const sphere = new THREE.Mesh( geometryS, materialS );
+            scene.add( sphere );
+            sphere.translateX(3);
+            sphere.translateY(0.8);
+
+            var render = function() {
+                renderer.render(scene, camera);
+            }
+
+            var update = function() {
+                // sphere.rotation.x += 0.001;
+                // sphere.rotation.y += 0.001;
+                // sphere.rotation.z += 0.001;
+            }
+
+            var gameLoop = function() {
+                update();
+                render();
+                requestAnimationFrame(gameLoop);
+            }
+
+            gameLoop();
+
+            window.addEventListener('resize', function() {
+                var width = window.innerWidth;
+                var height = window.innerHeight;
+                renderer.setSize( width, height );
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+            } );
+            
+        }
+
+        init();
+    </script>
+</body>
+</html>
